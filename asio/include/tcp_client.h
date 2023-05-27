@@ -6,7 +6,9 @@
 #include <atomic>
 
 #include "asio.hpp"
+#include "asio/steady_timer.hpp"
 
+using asio::steady_timer;
 using asio::ip::tcp;
 
 enum class ConnectType {
@@ -34,6 +36,8 @@ public:
 
 private:
     void doConnect(const tcp::resolver::results_type& endpoints);
+    void doReconnect();
+    void doConnectCb(const ConnectType& connect_type, const std::string& ip);
     void doRecv();
     void doSend();
 
@@ -49,4 +53,5 @@ private:
     RecvCallback recv_cb_;
     ConnectCallback connect_cb_;
     std::atomic<bool> reconnect_;
+    steady_timer timer_;
 };

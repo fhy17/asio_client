@@ -62,6 +62,7 @@ int main(int argc, char* argv[]) {
     //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     // }
     char line[1024];
+    std::cout << "test run" << std::endl;
     while (std::cin.getline(line, sizeof(line) - 1)) {
         // std::cout << "getline length: " << strlen(line) << std::endl;
         std::string msg(line);
@@ -70,7 +71,8 @@ int main(int argc, char* argv[]) {
         test->send(msg);
         memset(line, 0x00, sizeof(line));
     }
+    std::cout << "test run" << std::endl;
     test->stop();
-
+    std::cout << "test run" << std::endl;
     return 0;
 }
