@@ -74,6 +74,7 @@
         "xutility": "cpp",
         "*.ipp": "cpp",
         "cwctype": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "charconv": "cpp"
     }
 }
