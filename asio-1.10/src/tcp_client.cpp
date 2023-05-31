@@ -1,139 +1,96 @@
 #include "tcp_client.h"
+#include "tcp_connection.h"
 
-static const int reconnect_interval = 3000;  // ms
+#include <string>
+#include <functional>
+#include <memory>
+#include <iostream>
+
+using namespace std::placeholders;
+
+namespace {
+
+const int32_t kMinInterval = 1 * 1000;   // ms
+const int32_t kMaxInterval = 3 * 1000;  // ms
+
+}  // namespace
+
+namespace asio_net {
+
+using asio::ip::tcp;
+
+std::atomic<uint32_t> TcpClient::conn_sequence = 0;
 
 TcpClient::TcpClient(asio::io_service& io_service, const std::string& ip, uint16_t port)
-    : ip_(ip),
+    : io_service_(io_service),
+      resolver_(io_service_),
+      ip_(ip),
       port_(port),
-      io_service_(io_service),
-      socket_(io_service),
+      conn_(new TcpConnection(io_service_, std::string("tcpclient#") + std::to_string(++conn_sequence))),
       reconnect_(false),
-      timer_(io_service),
-      is_connected_(ConnectStatus::DISCONNECT) {
-    // tcp::resolver resolver(io_service_);
-    // endpoint_ = resolver.resolve(ip_.c_str(), std::to_string(port_));
-}  // namespace TcpClient::TcpClient(asio::io_context&io_context,conststd::string&ip,uint16_tport)
+      interval_(kMinInterval) {}
 
 TcpClient::~TcpClient() {
-    reconnect_ = false;
-    socket_.close();
+    // std::cout << "~TcpClient()" << std::endl;
 }
 
 void TcpClient::connect(bool reconnect) {
     reconnect_ = reconnect;
-    tcp::resolver::query query(ip_, std::to_string(port_));
-    tcp::resolver resolver(io_service_);
-    endpoint_ = resolver.resolve(query);
-    doConnect(endpoint_);
+    connectInter();
 }
 
-void TcpClient::close() {
+void TcpClient::closeClient() {
     reconnect_ = false;
-    is_connected_ = ConnectStatus::DISCONNECT;
-    socket_.cancel();
-    asio::error_code ec;
-    socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-    socket_.close();
-    // asio::post(io_context_, [this]() { socket_.close(); });
+    if (conn_) conn_->forceClose();
 }
 
-bool TcpClient::send(const std::string& msg) {
-    if (ConnectStatus ::CONNECTED != is_connected_) {
-        std::cout << "send err, socket is not connected " << std::endl;
-        return false;
+void TcpClient::sendMessage(const std::string& data) {
+    io_service_.post(std::bind(&TcpClient::handleSending, shared_from_this(), data));
+}
+
+void TcpClient::connectInter() {
+    std::cout << __FUNCTION__ << std::endl;
+    tcp::resolver::query query(ip_, std::to_string(port_));
+    resolver_.async_resolve(query, std::bind(&TcpClient::handleResolver, shared_from_this(), _1, _2));
+}
+
+void TcpClient::handleResolver(const std::error_code& error_code, asio::ip::tcp::resolver::iterator endpoint_itr) {
+     std::cout << "handleResolver " << error_code.value() << std::endl;
+    if (!error_code) {
+        asio::async_connect(conn_->socket(), endpoint_itr,
+                            std::bind(&TcpClient::handleConnect, shared_from_this(), _1, _2));
     }
-    io_service_.post([this, msg]() {
-        bool send_in_progress = !send_msgs_.empty();
-        send_msgs_.push_back(msg);
-        if (!send_in_progress) {
-            doSend();
-        }
-    });
-    return true;
 }
 
-void TcpClient::setRecvCb(RecvCallback cb) { recv_cb_ = cb; }
-
-void TcpClient::setConnectCb(ConnectCallback cb) { connect_cb_ = cb; }
-
-void TcpClient::doConnect(const tcp::resolver::iterator& endpoints) {
-    is_connected_ = ConnectStatus::CONNECTING;
-    auto self = shared_from_this();
-    asio::async_connect(socket_, endpoints, [this, self](std::error_code ec, tcp::resolver::iterator) {
-        std::cout << "async_connect err: " << ec.value() << std::endl;
-        doConnectCb(0 == ec.value() ? ConnectStatus::CONNECTED : ConnectStatus::ERR);
-        if (!ec) {
-            doRecv();
+void TcpClient::handleConnect(const std::error_code& error_code, asio::ip::tcp::resolver::iterator endpoint_itr) {
+     std::cout << "handleConnect " << error_code.value() << " interval_=" << interval_ << " tcpclient=" <<
+     conn_->connName() << std::endl;
+    if (!error_code) {
+        conn_->setConnState(TcpConnection::CONNECTED);
+        conn_->setConnectionCallback(connectioncallback_);
+        conn_->setReceiveCallback(receivecallback_);
+        conn_->setCloseCallback(connectioncallback_);
+        conn_->startReceive();
+        if (connectioncallback_) connectioncallback_(conn_);
+    } else {
+        if (connectioncallback_) connectioncallback_(conn_);
+        conn_.reset(new TcpConnection(io_service_, std::string("tcpclient#") + std::to_string(++conn_sequence)));
+        if (endpoint_itr != tcp::resolver::iterator()) {
+            asio::async_connect(conn_->socket(), ++endpoint_itr,
+                                std::bind(&TcpClient::handleConnect, shared_from_this(), _1, _2));
         } else {
-            doReconnect();
+            std::cout << "interval_ " << interval_ << std::endl;
+            if (reconnect_) {
+                timer_.reset(new AsioTimer(io_service_, interval_, std::bind(&TcpClient::connectInter, this)));
+                if (interval_ < kMaxInterval)
+                    timer_->startTimer();
+                else
+                    timer_->startTimer(true);
+            }
         }
-    });
-}
-
-void TcpClient::doReconnect() {
-    is_connected_ = ConnectStatus::DISCONNECT;
-    clearSendMsgs();
-    socket_.close();
-    if (!reconnect_) return;
-    timer_.expires_from_now(std::chrono::milliseconds(reconnect_interval));
-    auto self = shared_from_this();
-    timer_.async_wait([this, self](const std::error_code& ec) {
-        if (ec == asio::error::operation_aborted) {
-            std::cout << "timer async_wait err: " << ec.value() << std::endl;
-            return;
-        }
-        timer_.cancel();
-        doConnect(endpoint_);
-    });
-}
-
-void TcpClient::doConnectCb(const ConnectStatus& status) {
-    if (ConnectStatus ::CONNECTED == status)
-        is_connected_ = ConnectStatus::CONNECTED;
-    else
-        is_connected_ = ConnectStatus::DISCONNECT;
-    std::string ip;
-    try {
-        ip = socket_.remote_endpoint().address().to_string();
-    } catch (...) {
-        ip = "";
     }
-    if (connect_cb_) connect_cb_(status, ip);
 }
 
-void TcpClient::doRecv() {
-    auto self = shared_from_this();
-    socket_.async_read_some(asio::buffer(recv_msg_, sizeof(recv_msg_) - 1),
-                            [this, self](std::error_code ec, std::size_t length) {
-                                if (!ec) {
-                                    if (length > 0) {
-                                        if (recv_cb_) recv_cb_(recv_msg_, length);
-                                        memset(recv_msg_, 0x00, sizeof(recv_msg_));
-                                    }
-                                    doRecv();
-                                } else {
-                                    std::cout << "async_read_some err: " << ec.value() << std::endl;
-                                    doConnectCb(2 == ec.value() ? ConnectStatus::DISCONNECT : ConnectStatus::ERR);
-                                    doReconnect();
-                                }
-                            });
-}
+void TcpClient::handleSending(const std::string& data) { conn_->sendMessage(data); }
 
-void TcpClient::doSend() {
-    auto self = shared_from_this();
-    asio::async_write(socket_, asio::buffer(send_msgs_.front()),
-                      [this, self](std::error_code ec, std::size_t /*length*/) {
-                          if (!ec) {
-                              send_msgs_.pop_front();
-                              if (!send_msgs_.empty()) {
-                                  doSend();
-                              }
-                          } else {
-                              // std::cout << "async_write err: " << ec.value() << std::endl;
-                              doConnectCb(ConnectStatus::ERR);
-                              //   doReconnect();
-                          }
-                      });
-}
-
-void TcpClient::clearSendMsgs() { send_msgs_.clear(); }
+}  // namespace asio_net
