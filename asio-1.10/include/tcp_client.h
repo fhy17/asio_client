@@ -1,57 +1,48 @@
-#include <cstdlib>
-#include <deque>
-#include <iostream>
-#include <thread>
+#pragma once
+
 #include <string>
+#include <cstdint>
+#include <memory>
 #include <atomic>
-
+#include <system_error>
+#include "noncopy.h"
+#include "callback_function.h"
+#include "asio_timer.h"
 #include "asio.hpp"
-#include "asio/steady_timer.hpp"
 
-using asio::steady_timer;
-using asio::ip::tcp;
+namespace asio_net {
 
-enum class ConnectStatus {
-    ERR,
-    CONNECTING,
-    CONNECTED,
-    DISCONNECT,
-};
-typedef std::deque<std::string> send_message_queue;
-typedef std::function<void(const char* msg, size_t len)> RecvCallback;
-typedef std::function<void(ConnectStatus status, const std::string ip)> ConnectCallback;
-
-class TcpClient : public std::enable_shared_from_this<TcpClient> {
+class TcpClient : public NonCopy, public std::enable_shared_from_this<TcpClient> {
 public:
     TcpClient(asio::io_service& io_service, const std::string& ip, uint16_t port);
     ~TcpClient();
 
-    void connect(bool reconnect = false);
-    void close();
+    void connect(bool reconnect = true);
+    void closeClient();
+    void sendMessage(const std::string& data);
 
-    void setRecvCb(RecvCallback cb);
-    void setConnectCb(ConnectCallback cb);
-    bool send(const std::string& msg);
+    void setConnectionCallback(ConnectionCallback cb) { connectioncallback_ = std::move(cb); }
 
-private:
-    void doConnect(const tcp::resolver::iterator& endpoints);
-    void doReconnect();
-    void doConnectCb(const ConnectStatus& status);
-    void doRecv();
-    void doSend();
-    void clearSendMsgs();
+    void setReceiveCallback(ReceiveCallback cb) { receivecallback_ = std::move(cb); }
 
 private:
-    std::string ip_;
-    uint16_t port_;
+    void connectInter();
+    void handleResolver(const std::error_code& error_code, asio::ip::tcp::resolver::iterator endpoint_itr);
+    void handleConnect(const std::error_code& error_code, asio::ip::tcp::resolver::iterator endpoint_itr);
+    void handleSending(const std::string& data);
+
     asio::io_service& io_service_;
-    tcp::resolver::iterator endpoint_;
-    tcp::socket socket_;
-    char recv_msg_[1024];
-    send_message_queue send_msgs_;
-    RecvCallback recv_cb_;
-    ConnectCallback connect_cb_;
+    asio::ip::tcp::resolver resolver_;
+    const std::string ip_;
+    const uint16_t port_;
+    TcpConnPtr conn_;
     std::atomic<bool> reconnect_;
-    steady_timer timer_;
-    std::atomic<ConnectStatus> is_connected_;
+    int32_t interval_;  //	millisecond
+    std::shared_ptr<AsioTimer> timer_;
+    ConnectionCallback connectioncallback_;
+    ReceiveCallback receivecallback_;
+
+    static std::atomic<uint32_t> conn_sequence;
 };
+
+}  // namespace asio_net

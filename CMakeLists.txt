@@ -74,3 +74,5 @@ project ("fhy" VERSION 1.0.0.0)
 add_subdirectory("asio-1.28")
 
 add_subdirectory("asio-1.10")
+
+add_subdirectory("udp-asio-1.28")
