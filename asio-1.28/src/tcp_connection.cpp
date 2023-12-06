@@ -3,19 +3,14 @@
 using namespace asio_net;
 using namespace std::placeholders;
 
-TcpConnection::TcpConnection(asio::io_service& io_service, const std::string& name)
-    : io_service_(io_service),
-      socket_(io_service_),
-      conn_name_(name),
-      receiving_(false),
-      sending_(false),
-      state_(CONNECTING) {}
+TcpConnection::TcpConnection(asio::io_context& io_context, const std::string& name)
+    : io_context_(io_context), socket_(io_context_), receiving_(false), sending_(false), state_(CONNECTING) {}
 
 void TcpConnection::startReceive() {
     // boost::asio::async_read(socket_, boost::asio::buffer(buf),
     //     std::bind(&TcpConnection::handleReceive, shared_from_this(), _1, _2));
     if (receiving_) return;
-    io_service_.post(std::bind(&TcpConnection::receiveInService, shared_from_this()));
+    io_context_.post(std::bind(&TcpConnection::receiveInService, shared_from_this()));
     receiving_ = true;
 }
 
@@ -27,11 +22,11 @@ TcpConnection::~TcpConnection() {
 void TcpConnection::sendMessage(const char* dataptr, size_t size) { sendMessage(std::string(dataptr, size)); }
 
 void TcpConnection::sendMessage(const std::string& data) {
-    io_service_.post(
+    io_context_.post(
         std::bind(&TcpConnection::sendInService, shared_from_this(), data));  //	optimization for copying data
 }
 
-void TcpConnection::forceClose() { io_service_.post(std::bind(&TcpConnection::closeInService, shared_from_this())); }
+void TcpConnection::forceClose() { io_context_.post(std::bind(&TcpConnection::closeInService, shared_from_this())); }
 
 void TcpConnection::receiveInService() {
     socket_.async_read_some(asio::buffer(buf_in_.writePtr(), buf_in_.writableCount()),
@@ -43,7 +38,7 @@ void TcpConnection::handleReceive(const std::error_code& errcode, size_t bytes_t
     if (!errcode) {
         buf_in_.retriveWriteIndex(static_cast<uint32_t>(bytes_transferred));
         buf_in_.adjustInternal();
-        if (receivecallback_) receivecallback_(shared_from_this(), &buf_in_);
+        if (recv_callback_) recv_callback_(shared_from_this(), &buf_in_);
         receiveInService();
     } else if (errcode.value() == asio::error::eof && close_callback_) {
         state_ = DISCONNECTED;

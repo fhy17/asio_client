@@ -15,9 +15,13 @@ using asio::ip::tcp;
 
 class TcpConnection : NonCopy, public std::enable_shared_from_this<TcpConnection> {
 public:
-    enum ConnectState { CONNECTING, CONNECTED, DISCONNECTING, DISCONNECTED };
+    enum ConnectState {
+        CONNECTING,
+        CONNECTED,
+        DISCONNECTED,
+    };
 
-    TcpConnection(asio::io_service& io_service, const std::string& name);
+    TcpConnection(asio::io_context& io_context, const std::string& name);
     ~TcpConnection();
 
     void startReceive();
@@ -25,17 +29,15 @@ public:
     void sendMessage(const std::string& data);
     void forceClose();
 
-    void setConnectionCallback(ConnectionCallback cb) { connectioncallback_ = std::move(cb); }
+    void setConnectionCallback(ConnectionCallback cb) { connect_callback_ = std::move(cb); }
 
     void setCloseCallback(CloseCallback cb) { close_callback_ = std::move(cb); }
 
-    void setReceiveCallback(ReceiveCallback cb) { receivecallback_ = std::move(cb); }
+    void setReceiveCallback(ReceiveCallback cb) { recv_callback_ = std::move(cb); }
 
     bool connected() const { return state_ == CONNECTED; }
 
     void setNoDelay(bool option) { socket_.set_option(tcp::no_delay(option)); }
-
-    const std::string& connName() const { return conn_name_; }
 
     std::string localIP() const { return socket_.local_endpoint().address().to_string(); }
 
@@ -52,17 +54,16 @@ private:
     void handleSend(const std::error_code& errcode, size_t bytes_transferred);
     void closeInService();
 
-    asio::io_service& io_service_;
+    asio::io_context& io_context_;
     tcp::socket socket_;
-    std::string conn_name_;
     std::atomic<bool> receiving_;
     std::atomic<bool> sending_;
     ConnectState state_;
     ConnectionBuffer buf_in_;
     ConnectionBuffer buf_out_;
-    ConnectionCallback connectioncallback_;
+    ConnectionCallback connect_callback_;
     CloseCallback close_callback_;
-    ReceiveCallback receivecallback_;
+    ReceiveCallback recv_callback_;
 };
 
 }  // namespace asio_net
