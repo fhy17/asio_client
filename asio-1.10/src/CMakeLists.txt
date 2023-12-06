@@ -11,7 +11,7 @@ set(ASIO_PATH "asio-1.10")
 # add include directory
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
-    ${CMAKE_SOURCE_DIR}/external_dependencies/${ASIO_PATH}
+    ${CMAKE_SOURCE_DIR}/extern/${ASIO_PATH}
 )
 # message(STATUS link_dir: ${CMAKE_SOURCE_DIR}/external_dependencies/${ASIO_PATH})
 
