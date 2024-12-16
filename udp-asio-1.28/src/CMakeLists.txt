@@ -15,9 +15,9 @@ include_directories(
 )
 # message(STATUS link_dir: ${CMAKE_SOURCE_DIR}/external_dependencies/${ASIO_PATH}/include)
 
-link_directories(
-    ${CMAKE_SOURCE_DIR}/lib
-)
+# link_directories(
+#     ${CMAKE_SOURCE_DIR}/lib
+# )
 
 # get source list of the directory
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} SRC_LIST)

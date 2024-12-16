@@ -26,7 +26,7 @@ TcpClient::TcpClient(asio::io_service& io_service, const std::string& ip, uint16
       resolver_(io_service_),
       ip_(ip),
       port_(port),
-      conn_(new TcpConnection(io_service_, std::string("tcpclient#") + std::to_string(++conn_sequence))),
+      conn_(new TcpConnection(io_service_, std::string("tcp_client#") + std::to_string(++conn_sequence))),
       reconnect_(false),
       interval_(kMinInterval) {}
 
@@ -63,18 +63,18 @@ void TcpClient::handleResolver(const std::error_code& error_code, asio::ip::tcp:
 }
 
 void TcpClient::handleConnect(const std::error_code& error_code, asio::ip::tcp::resolver::iterator endpoint_itr) {
-     std::cout << "handleConnect " << error_code.value() << " interval_=" << interval_ << " tcpclient=" <<
+     std::cout << "handleConnect " << error_code.value() << " interval_=" << interval_ << " tcp_client=" <<
      conn_->connName() << std::endl;
     if (!error_code) {
         conn_->setConnState(TcpConnection::CONNECTED);
-        conn_->setConnectionCallback(connectioncallback_);
-        conn_->setReceiveCallback(receivecallback_);
-        conn_->setCloseCallback(connectioncallback_);
+        conn_->setConnectionCallback(connection_callback_);
+        conn_->setReceiveCallback(retrieve_callback_);
+        conn_->setCloseCallback(connection_callback_);
         conn_->startReceive();
-        if (connectioncallback_) connectioncallback_(conn_);
+        if (connection_callback_) connection_callback_(conn_);
     } else {
-        if (connectioncallback_) connectioncallback_(conn_);
-        conn_.reset(new TcpConnection(io_service_, std::string("tcpclient#") + std::to_string(++conn_sequence)));
+        if (connection_callback_) connection_callback_(conn_);
+        conn_.reset(new TcpConnection(io_service_, std::string("tcp_client#") + std::to_string(++conn_sequence)));
         if (endpoint_itr != tcp::resolver::iterator()) {
             asio::async_connect(conn_->socket(), ++endpoint_itr,
                                 std::bind(&TcpClient::handleConnect, shared_from_this(), _1, _2));

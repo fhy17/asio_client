@@ -41,9 +41,9 @@ void TcpConnection::receiveInService() {
 void TcpConnection::handleReceive(const std::error_code& errcode, size_t bytes_transferred) {
     // std::cout << "TcpConnection-handleReceive " << errcode.value() << " " << errcode.message() << std::endl;
     if (!errcode) {
-        buf_in_.retriveWriteIndex(static_cast<uint32_t>(bytes_transferred));
+        buf_in_.retrieveWriteIndex(static_cast<uint32_t>(bytes_transferred));
         buf_in_.adjustInternal();
-        if (receivecallback_) receivecallback_(shared_from_this(), &buf_in_);
+        if (retrieve_callback_) retrieve_callback_(shared_from_this(), &buf_in_);
         receiveInService();
     } else if (errcode.value() == asio::error::eof && close_callback_) {
         state_ = DISCONNECTED;
@@ -72,7 +72,7 @@ void TcpConnection::sendInService(const std::string& data) {
 void TcpConnection::handleSend(const std::error_code& errcode, size_t bytes_transferred) {
     // std::cout << "TcpConnection-handleSend " << errcode.value() << std::endl;
     if (!errcode) {
-        buf_out_.retriveReadIndex(static_cast<uint32_t>(bytes_transferred));
+        buf_out_.retrieveReadIndex(static_cast<uint32_t>(bytes_transferred));
         if (buf_out_.readableCount() > 0 && connected()) {
             asio::async_write(socket_, asio::buffer(buf_out_.readPtr(), buf_out_.readableCount()),
                               std::bind(&TcpConnection::handleSend, shared_from_this(), _1, _2));

@@ -25,11 +25,11 @@ public:
     void sendMessage(const std::string& data);
     void forceClose();
 
-    void setConnectionCallback(ConnectionCallback cb) { connectioncallback_ = std::move(cb); }
+    void setConnectionCallback(ConnectionCallback cb) { connection_callback_ = std::move(cb); }
 
     void setCloseCallback(CloseCallback cb) { close_callback_ = std::move(cb); }
 
-    void setReceiveCallback(ReceiveCallback cb) { receivecallback_ = std::move(cb); }
+    void setReceiveCallback(ReceiveCallback cb) { retrieve_callback_ = std::move(cb); }
 
     bool connected() const { return state_ == CONNECTED; }
 
@@ -60,9 +60,9 @@ private:
     ConnectState state_;
     ConnectionBuffer buf_in_;
     ConnectionBuffer buf_out_;
-    ConnectionCallback connectioncallback_;
+    ConnectionCallback connection_callback_;
     CloseCallback close_callback_;
-    ReceiveCallback receivecallback_;
+    ReceiveCallback retrieve_callback_;
 };
 
 }  // namespace asio_net

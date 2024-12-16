@@ -29,7 +29,7 @@ void ConnectionBuffer::append(const char* dataptr, size_t datalen) {
     }
 }
 
-void ConnectionBuffer::retriveReadIndex(uint32_t count) {
+void ConnectionBuffer::retrieveReadIndex(uint32_t count) {
     read_index_ += count;
     if (read_index_ >= write_index_) {
         read_index_ = 0;
@@ -37,7 +37,7 @@ void ConnectionBuffer::retriveReadIndex(uint32_t count) {
     }
 }
 
-void ConnectionBuffer::retriveWriteIndex(uint32_t count) {
+void ConnectionBuffer::retrieveWriteIndex(uint32_t count) {
     write_index_ += count;
     if (write_index_ >= buffer_.size()) {
         write_index_ = static_cast<uint32_t>(buffer_.size());
@@ -45,7 +45,7 @@ void ConnectionBuffer::retriveWriteIndex(uint32_t count) {
     }
 }
 
-void ConnectionBuffer::retriveBothIndex() {
+void ConnectionBuffer::retrieveBothIndex() {
     read_index_ = 0;
     write_index_ = 0;
 }

@@ -21,9 +21,9 @@ public:
     void closeClient();
     void sendMessage(const std::string& data);
 
-    void setConnectionCallback(ConnectionCallback cb) { connectioncallback_ = std::move(cb); }
+    void setConnectionCallback(ConnectionCallback cb) { connection_callback_ = std::move(cb); }
 
-    void setReceiveCallback(ReceiveCallback cb) { receivecallback_ = std::move(cb); }
+    void setReceiveCallback(ReceiveCallback cb) { retrieve_callback_ = std::move(cb); }
 
 private:
     void connectInter();
@@ -39,8 +39,8 @@ private:
     std::atomic<bool> reconnect_;
     int32_t interval_;  //	millisecond
     std::shared_ptr<AsioTimer> timer_;
-    ConnectionCallback connectioncallback_;
-    ReceiveCallback receivecallback_;
+    ConnectionCallback connection_callback_;
+    ReceiveCallback retrieve_callback_;
 
     static std::atomic<uint32_t> conn_sequence;
 };

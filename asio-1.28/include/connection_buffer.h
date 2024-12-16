@@ -24,9 +24,9 @@ public:
 
     void append(const std::string& data);
     void append(const char* dataptr, size_t datalen);
-    void retriveReadIndex(uint32_t count);
-    void retriveWriteIndex(uint32_t count);
-    void retriveBothIndex();
+    void retrieveReadIndex(uint32_t count);
+    void retrieveWriteIndex(uint32_t count);
+    void retrieveBothIndex();
     void adjustInternal();
 
 private:

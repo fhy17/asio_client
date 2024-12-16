@@ -42,10 +42,10 @@ public:
                 client_->setConnectionCallback([this](const TcpConnPtr& conn_ptr) {
                     std::cout << (conn_ptr->connected() ? "Connected " : "Disconnected ") << std::endl;
                 });
-                client_->setReceiveCallback([this](const TcpConnPtr& conn_ptr, ConnectionBuffer* bufptr) {
-                    std::cout << conn_ptr->remoteIP() << ", " << std::string(bufptr->readPtr(), bufptr->readableCount())
+                client_->setReceiveCallback([this](const TcpConnPtr& conn_ptr, ConnectionBuffer* buf_ptr) {
+                    std::cout << conn_ptr->remoteIP() << ", " << std::string(buf_ptr->readPtr(), buf_ptr->readableCount())
                               << std::endl;
-                    bufptr->retriveReadIndex(bufptr->readableCount());
+                    buf_ptr->retrieveReadIndex(buf_ptr->readableCount());
                 });
                 client_->connect();
                 // t_ = std::thread([this]() { io_service_.run(); });
