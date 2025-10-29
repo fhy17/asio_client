@@ -57,12 +57,18 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
 # endif()
 
 
-
 project ("fhy" VERSION 1.0.0.0)
 
-
 add_subdirectory("asio-1.28")
+
+add_subdirectory("asio-1.28_async_client")
 
 add_subdirectory("asio-1.10")
 
 add_subdirectory("udp-asio-1.28")
+
+add_subdirectory("asio-1.28_server_single")
+
+add_subdirectory("asio-1.28_server_multi")
+
+add_subdirectory("asio-1.28_server_multi_protocol")
